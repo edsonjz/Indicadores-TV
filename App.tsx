@@ -24,7 +24,8 @@ const App: React.FC = () => {
         // 1. Fetch Operators
         const { data: opsData, error: opsError } = await supabase
           .from('operators')
-          .select('*');
+          .select('*')
+          .order('name', { ascending: true });
 
         if (opsError) throw opsError;
         if (opsData) setOperators(opsData as Operator[]);
@@ -58,7 +59,10 @@ const App: React.FC = () => {
       .on('postgres_changes', { event: '*', table: 'operators', schema: 'public' }, () => {
         // Refresh operator list on any change
         const refreshOperators = async () => {
-          const { data } = await supabase.from('operators').select('*');
+          const { data } = await supabase
+            .from('operators')
+            .select('*')
+            .order('name', { ascending: true });
           if (data) setOperators(data as Operator[]);
         };
         refreshOperators();
@@ -102,7 +106,7 @@ const App: React.FC = () => {
   const addOperator = async (operator: Operator) => {
     try {
       // Atualização Otimista
-      setOperators((prev) => [...prev, operator]);
+      setOperators((prev) => [...prev, operator].sort((a, b) => a.name.localeCompare(b.name)));
 
       let photoUrl = operator.photo;
       if (operator.photoFile) {
@@ -125,7 +129,10 @@ const App: React.FC = () => {
         console.error('Erro ao adicionar operador:', error);
         alert('Erro ao salvar no banco de dados.');
         // Refresh full list on error to ensure sync
-        const { data } = await supabase.from('operators').select('*');
+        const { data } = await supabase
+          .from('operators')
+          .select('*')
+          .order('name', { ascending: true });
         if (data) setOperators(data as Operator[]);
       }
     } catch (err) {
@@ -136,7 +143,10 @@ const App: React.FC = () => {
   const editOperator = async (updatedOperator: Operator) => {
     try {
       // Atualização Otimista
-      setOperators((prev) => prev.map((op) => (op.id === updatedOperator.id ? updatedOperator : op)));
+      setOperators((prev) =>
+        prev.map((op) => (op.id === updatedOperator.id ? updatedOperator : op))
+          .sort((a, b) => a.name.localeCompare(b.name))
+      );
 
       let photoUrl = updatedOperator.photo;
       if (updatedOperator.photoFile) {
