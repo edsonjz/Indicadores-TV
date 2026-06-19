@@ -240,6 +240,7 @@ const App: React.FC = () => {
 
   const updateSettings = async (newSettings: AppSettings) => {
     try {
+      setSettings(newSettings);
       const { error } = await supabase.from('settings').upsert({
         id: 1,
         slide_duration: newSettings.slideDuration,
