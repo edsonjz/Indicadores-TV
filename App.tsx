@@ -5,8 +5,19 @@ import { Operator, ViewMode, AppSettings } from './types';
 import { supabase } from './supabaseClient';
 
 const DEFAULT_SETTINGS: AppSettings = {
-  font: 'Playfair Display',
-  slideDuration: 8
+  slideDuration: 8,
+  nameStyle: {
+    font: 'Playfair Display',
+    size: '6xl',
+    weight: 'bold',
+    align: 'center',
+  },
+  resumoStyle: {
+    font: 'Playfair Display',
+    size: 'xl',
+    weight: 'normal',
+    align: 'center',
+  },
 };
 
 const App: React.FC = () => {
@@ -15,7 +26,7 @@ const App: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('admin');
   const [loading, setLoading] = useState(true);
 
-  // Load from Supabase on mount and set up Realtime
+  // ── Load data from Supabase + Realtime subscriptions ──────────────────────
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -31,7 +42,7 @@ const App: React.FC = () => {
         if (opsData) setOperators(opsData as Operator[]);
 
         // 2. Fetch Settings
-        const { data: setData, error: setError } = await supabase
+        const { data: setData } = await supabase
           .from('settings')
           .select('*')
           .eq('id', 1)
@@ -39,13 +50,23 @@ const App: React.FC = () => {
 
         if (setData) {
           setSettings({
-            font: setData.font,
-            slideDuration: setData.slide_duration
+            slideDuration: setData.slide_duration || 8,
+            nameStyle: {
+              font: setData.name_font || setData.font || 'Playfair Display',
+              size: setData.name_size || '6xl',
+              weight: setData.name_weight || 'bold',
+              align: setData.name_align || 'center',
+            },
+            resumoStyle: {
+              font: setData.resumo_font || setData.font || 'Playfair Display',
+              size: setData.resumo_size || 'xl',
+              weight: setData.resumo_weight || 'normal',
+              align: setData.resumo_align || 'center',
+            },
           });
         }
-
       } catch (error) {
-        console.error("Erro ao carregar dados do Supabase:", error);
+        console.error('Erro ao carregar dados do Supabase:', error);
       } finally {
         setLoading(false);
       }
@@ -53,30 +74,42 @@ const App: React.FC = () => {
 
     fetchData();
 
-    // 3. Set up Realtime Subscriptions
+    // Realtime — operators
     const operatorsSubscription = supabase
       .channel('operators-changes')
-      .on('postgres_changes', { event: '*', table: 'operators', schema: 'public' }, () => {
-        // Refresh operator list on any change
-        const refreshOperators = async () => {
-          const { data } = await supabase
-            .from('operators')
-            .select('*')
-            .order('name', { ascending: true });
-          if (data) setOperators(data as Operator[]);
-        };
-        refreshOperators();
+      .on('postgres_changes', { event: '*', table: 'operators', schema: 'public' }, async () => {
+        const { data } = await supabase
+          .from('operators')
+          .select('*')
+          .order('name', { ascending: true });
+        if (data) setOperators(data as Operator[]);
       })
       .subscribe();
 
+    // Realtime — settings
     const settingsSubscription = supabase
       .channel('settings-changes')
-      .on('postgres_changes', { event: 'UPDATE', table: 'settings', schema: 'public', filter: 'id=eq.1' }, (payload) => {
-        setSettings({
-          font: payload.new.font,
-          slideDuration: payload.new.slide_duration
-        });
-      })
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', table: 'settings', schema: 'public', filter: 'id=eq.1' },
+        (payload) => {
+          setSettings({
+            slideDuration: payload.new.slide_duration || 8,
+            nameStyle: {
+              font: payload.new.name_font || payload.new.font || 'Playfair Display',
+              size: payload.new.name_size || '6xl',
+              weight: payload.new.name_weight || 'bold',
+              align: payload.new.name_align || 'center',
+            },
+            resumoStyle: {
+              font: payload.new.resumo_font || payload.new.font || 'Playfair Display',
+              size: payload.new.resumo_size || 'xl',
+              weight: payload.new.resumo_weight || 'normal',
+              align: payload.new.resumo_align || 'center',
+            },
+          });
+        }
+      )
       .subscribe();
 
     return () => {
@@ -85,9 +118,10 @@ const App: React.FC = () => {
     };
   }, []);
 
+  // ── Helpers ────────────────────────────────────────────────────────────────
   const uploadPhoto = async (file: File): Promise<string | null> => {
     const fileExt = file.name.split('.').pop();
-    const fileName = `${Math.random()}.${fileExt}`;
+    const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 6)}.${fileExt}`;
     const filePath = `operator-photos/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
@@ -103,36 +137,38 @@ const App: React.FC = () => {
     return data.publicUrl;
   };
 
+  const buildPayload = (op: Operator, photoUrl: string) => ({
+    id: op.id,
+    name: op.name,
+    photo: photoUrl,
+    tma: op.tma,
+    nps: op.nps,
+    monitoria: op.monitoria,
+    abs: op.abs,
+    resumo: op.resumo,
+  });
+
+  // ── CRUD ───────────────────────────────────────────────────────────────────
   const addOperator = async (operator: Operator) => {
     try {
-      // Atualização Otimista
-      setOperators((prev) => [...prev, operator].sort((a, b) => a.name.localeCompare(b.name)));
+      setOperators((prev) =>
+        [...prev, operator].sort((a, b) => a.name.localeCompare(b.name))
+      );
 
       let photoUrl = operator.photo;
       if (operator.photoFile) {
-        const uploadedUrl = await uploadPhoto(operator.photoFile);
-        if (uploadedUrl) photoUrl = uploadedUrl;
+        const uploaded = await uploadPhoto(operator.photoFile);
+        if (uploaded) photoUrl = uploaded;
       }
 
       const { error } = await supabase
         .from('operators')
-        .insert([{
-          id: operator.id,
-          name: operator.name,
-          photo: photoUrl,
-          tma: operator.tma,
-          nps: operator.nps,
-          monitoria: operator.monitoria
-        }]);
+        .insert([buildPayload(operator, photoUrl)]);
 
       if (error) {
         console.error('Erro ao adicionar operador:', error);
         alert('Erro ao salvar no banco de dados.');
-        // Refresh full list on error to ensure sync
-        const { data } = await supabase
-          .from('operators')
-          .select('*')
-          .order('name', { ascending: true });
+        const { data } = await supabase.from('operators').select('*').order('name', { ascending: true });
         if (data) setOperators(data as Operator[]);
       }
     } catch (err) {
@@ -142,7 +178,6 @@ const App: React.FC = () => {
 
   const editOperator = async (updatedOperator: Operator) => {
     try {
-      // Atualização Otimista
       setOperators((prev) =>
         prev.map((op) => (op.id === updatedOperator.id ? updatedOperator : op))
           .sort((a, b) => a.name.localeCompare(b.name))
@@ -150,8 +185,8 @@ const App: React.FC = () => {
 
       let photoUrl = updatedOperator.photo;
       if (updatedOperator.photoFile) {
-        const uploadedUrl = await uploadPhoto(updatedOperator.photoFile);
-        if (uploadedUrl) photoUrl = uploadedUrl;
+        const uploaded = await uploadPhoto(updatedOperator.photoFile);
+        if (uploaded) photoUrl = uploaded;
       }
 
       const { error } = await supabase
@@ -161,7 +196,9 @@ const App: React.FC = () => {
           photo: photoUrl,
           tma: updatedOperator.tma,
           nps: updatedOperator.nps,
-          monitoria: updatedOperator.monitoria
+          monitoria: updatedOperator.monitoria,
+          abs: updatedOperator.abs,
+          resumo: updatedOperator.resumo,
         })
         .eq('id', updatedOperator.id);
 
@@ -175,28 +212,20 @@ const App: React.FC = () => {
   };
 
   const removeOperator = async (id: string) => {
-    console.log('Iniciando remoção do operador:', id);
     try {
-      // 1. Atualização Otimista (remove da UI imediatamente)
       const previousOperators = [...operators];
       setOperators((prev) => prev.filter((op) => String(op.id) !== String(id)));
 
-      // 2. Busca o operador para deletar a foto depois
-      const operatorToDelete = previousOperators.find(op => String(op.id) === String(id));
+      const operatorToDelete = previousOperators.find((op) => String(op.id) === String(id));
 
-      const { error } = await supabase
-        .from('operators')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from('operators').delete().eq('id', id);
 
       if (error) {
         console.error('Erro ao deletar no Supabase:', error);
         alert(`Não foi possível excluir: ${error.message}`);
-        // Reverte se der erro
         setOperators(previousOperators);
       } else {
-        console.log('Operador excluído do banco com sucesso.');
-        // 3. Limpeza opcional do Storage
+        // Cleanup storage photo
         if (operatorToDelete?.photo.includes('operator-photos')) {
           const path = operatorToDelete.photo.split('operator-photos/').pop();
           if (path) {
@@ -211,34 +240,40 @@ const App: React.FC = () => {
 
   const updateSettings = async (newSettings: AppSettings) => {
     try {
-      const { error } = await supabase
-        .from('settings')
-        .upsert({
-          id: 1,
-          font: newSettings.font,
-          slide_duration: newSettings.slideDuration
-        });
-
-      if (error) {
-        console.error('Erro ao salvar configurações:', error);
-      }
-      // Realtime will update the local state
+      const { error } = await supabase.from('settings').upsert({
+        id: 1,
+        slide_duration: newSettings.slideDuration,
+        name_font: newSettings.nameStyle.font,
+        name_size: newSettings.nameStyle.size,
+        name_weight: newSettings.nameStyle.weight,
+        name_align: newSettings.nameStyle.align,
+        resumo_font: newSettings.resumoStyle.font,
+        resumo_size: newSettings.resumoStyle.size,
+        resumo_weight: newSettings.resumoStyle.weight,
+        resumo_align: newSettings.resumoStyle.align,
+      });
+      if (error) console.error('Erro ao salvar configurações:', error);
     } catch (err) {
       console.error(err);
     }
   };
 
-  const toggleMode = () => {
-    setViewMode((prev) => (prev === 'admin' ? 'presentation' : 'admin'));
-  };
+  const toggleMode = () => setViewMode((prev) => (prev === 'admin' ? 'presentation' : 'admin'));
 
-  if (loading) return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center text-gray-600">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
-      <p>Conectando ao banco de dados...</p>
-    </div>
-  );
+  // ── Loading Screen ──────────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 to-indigo-950 flex flex-col items-center justify-center text-gray-300">
+        <div className="relative mb-6">
+          <div className="w-16 h-16 rounded-full border-4 border-indigo-800 border-t-indigo-400 animate-spin" />
+        </div>
+        <p className="text-lg font-medium tracking-wide">Conectando ao banco de dados...</p>
+        <p className="text-sm text-gray-500 mt-1">Indicadores TV</p>
+      </div>
+    );
+  }
 
+  // ── App ──────────────────────────────────────────────────────────────────────
   return (
     <div className="font-sans">
       {viewMode === 'admin' ? (

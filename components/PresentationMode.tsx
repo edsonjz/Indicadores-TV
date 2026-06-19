@@ -1,18 +1,136 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Settings, Clock, Star, Activity, Trophy, Crown } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { Settings, Clock, Star, Activity, TrendingDown, Quote, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Operator, PresentationModeProps } from '../types';
 
-export const PresentationMode: React.FC<PresentationModeProps> = ({ operators, settings, onSwitchMode }) => {
+// ── Color Schemes & Helper Types ─────────────────────────────────────────────
+interface ColorScheme {
+  iconColor: string;
+  iconBg: string;
+  glow: string;
+  valueColor: string;
+  borderColor: string;
+}
+
+const colorSchemes: Record<'green' | 'yellow' | 'red', ColorScheme> = {
+  green: {
+    iconColor: 'text-emerald-400',
+    iconBg: 'bg-emerald-500/10 border border-emerald-500/20',
+    glow: 'drop-shadow-[0_0_15px_rgba(16,185,129,0.65)]',
+    valueColor: 'text-emerald-400',
+    borderColor: 'border-emerald-500/35',
+  },
+  yellow: {
+    iconColor: 'text-amber-400',
+    iconBg: 'bg-amber-500/10 border border-amber-500/20',
+    glow: 'drop-shadow-[0_0_15px_rgba(245,158,11,0.65)]',
+    valueColor: 'text-amber-400',
+    borderColor: 'border-amber-500/35',
+  },
+  red: {
+    iconColor: 'text-rose-500',
+    iconBg: 'bg-rose-500/10 border border-rose-500/20',
+    glow: 'drop-shadow-[0_0_15px_rgba(244,63,94,0.65)]',
+    valueColor: 'text-rose-500',
+    borderColor: 'border-rose-500/35',
+  },
+};
+
+// ── Color Logic Helpers ──────────────────────────────────────────────────────
+const parseTmaToSeconds = (tmaStr: string): number => {
+  if (!tmaStr) return 0;
+  const parts = tmaStr.split(':');
+  if (parts.length === 2) {
+    const minutes = parseInt(parts[0], 10) || 0;
+    const seconds = parseInt(parts[1], 10) || 0;
+    return minutes * 60 + seconds;
+  }
+  const num = parseFloat(tmaStr);
+  return isNaN(num) ? 0 : num;
+};
+
+const getTmaColor = (tmaStr: string): 'green' | 'red' => {
+  const sec = parseTmaToSeconds(tmaStr);
+  return sec <= 239 ? 'green' : 'red';
+};
+
+const getNpsColor = (npsValue: string | number): 'green' | 'yellow' | 'red' => {
+  const val = parseFloat(String(npsValue).replace(',', '.'));
+  if (isNaN(val)) return 'green';
+  if (val >= 90) return 'green';
+  if (val >= 85) return 'yellow';
+  return 'red';
+};
+
+const getMonitoriaColor = (monValue: string | number): 'green' | 'yellow' | 'red' => {
+  const val = parseFloat(String(monValue).replace('%', '').replace(',', '.'));
+  if (isNaN(val)) return 'green';
+  if (val >= 96) return 'green';
+  if (val >= 90) return 'yellow';
+  return 'red';
+};
+
+const getAbsColor = (absStr: string): 'green' | 'yellow' | 'red' => {
+  if (!absStr) return 'green';
+  const val = parseFloat(String(absStr).replace('%', '').replace(',', '.'));
+  if (isNaN(val)) return 'green';
+  if (val === 0) return 'green';
+  if (val <= 2.0) return 'yellow';
+  return 'red';
+};
+
+// ── Stat Card ────────────────────────────────────────────────────────────────
+interface StatCardProps {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  delay: number;
+  statusColor: 'green' | 'yellow' | 'red';
+}
+
+const StatCard: React.FC<StatCardProps> = ({ icon, label, value, delay, statusColor }) => {
+  const scheme = colorSchemes[statusColor];
+  return (
+    <motion.div
+      initial={{ y: 30, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ delay, duration: 0.5 }}
+      className={`bg-gray-900/60 backdrop-blur-md border ${scheme.borderColor} p-6 md:p-8 rounded-3xl flex items-center gap-6 shadow-2xl transition-all duration-300`}
+    >
+      <div className={`p-4 md:p-5 ${scheme.iconBg} rounded-2xl shrink-0 ${scheme.iconColor}`}>{icon}</div>
+      <div>
+        <p className="text-gray-400 font-bold uppercase tracking-widest text-xs md:text-sm mb-1">{label}</p>
+        <p className={`text-4xl md:text-5xl lg:text-6xl font-black tabular-nums tracking-tight ${scheme.valueColor} ${scheme.glow}`}>{value}</p>
+      </div>
+    </motion.div>
+  );
+};
+
+// ── Main Component ───────────────────────────────────────────────────────────
+export const PresentationMode: React.FC<PresentationModeProps> = ({
+  operators,
+  settings,
+  onSwitchMode,
+}) => {
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  // Keyboard navigation callbacks
+  const handleNext = useCallback(() => {
+    setCurrentIndex((prev) => (prev + 1) % operators.length);
+  }, [operators.length]);
+
+  const handlePrev = useCallback(() => {
+    setCurrentIndex((prev) => (prev - 1 + operators.length) % operators.length);
+  }, [operators.length]);
 
   // Fallback if no operators exist
   if (operators.length === 0) {
     return (
       <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center text-white p-8">
         <h1 className="text-4xl font-bold mb-4 text-center">Aguardando Dados...</h1>
-        <p className="text-gray-400 mb-8 text-center">Cadastre operadores no painel administrativo para iniciar a exibição.</p>
+        <p className="text-gray-400 mb-8 text-center">
+          Cadastre operadores no painel administrativo para iniciar a exibição.
+        </p>
         <button
           onClick={onSwitchMode}
           className="bg-indigo-600 px-6 py-3 rounded-lg hover:bg-indigo-700 transition"
@@ -24,120 +142,57 @@ export const PresentationMode: React.FC<PresentationModeProps> = ({ operators, s
   }
 
   const currentOperator = operators[currentIndex];
-  // Ensure duration is valid
-  const slideDuration = Math.max(3, settings.slideDuration || 8); 
 
-  const triggerConfetti = useCallback(() => {
-    // Z-Index strategy: Background(0) < Confetti(5) < Content(10)
-    const CONFETTI_Z_INDEX = 5; 
-    const colors = ['#6366f1', '#a855f7', '#ec4899', '#f59e0b', '#10b981', '#ffffff'];
-    const mode = Math.floor(Math.random() * 3);
-
-    if (mode === 0) {
-      // MODO 1: Canhões Laterais (School Pride)
-      const end = Date.now() + 2000;
-
-      (function frame() {
-        confetti({
-          particleCount: 3,
-          angle: 60,
-          spread: 55,
-          origin: { x: 0 },
-          colors: colors,
-          shapes: ['circle', 'square'],
-          scalar: 1.2,
-          zIndex: CONFETTI_Z_INDEX,
-        });
-        confetti({
-          particleCount: 3,
-          angle: 120,
-          spread: 55,
-          origin: { x: 1 },
-          colors: colors,
-          shapes: ['circle', 'square'],
-          scalar: 1.2,
-          zIndex: CONFETTI_Z_INDEX,
-        });
-
-        if (Date.now() < end) {
-          requestAnimationFrame(frame);
-        }
-      })();
-
-    } else if (mode === 1) {
-      // MODO 2: Explosão Realista (Realistic Burst)
-      const count = 250;
-      const defaults = { origin: { y: 0.7 }, zIndex: CONFETTI_Z_INDEX };
-
-      const fire = (particleRatio: number, opts: any) => {
-        confetti({
-          ...defaults,
-          ...opts,
-          colors,
-          particleCount: Math.floor(count * particleRatio)
-        });
-      };
-
-      fire(0.25, { spread: 26, startVelocity: 55 });
-      fire(0.2, { spread: 60 });
-      fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 });
-      fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 });
-      fire(0.1, { spread: 120, startVelocity: 45 });
-
-    } else {
-      // MODO 3: Chuva de Fogos (Fireworks)
-      const duration = 2000;
-      const animationEnd = Date.now() + duration;
-      const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: CONFETTI_Z_INDEX };
-      const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
-
-      const interval: any = setInterval(function() {
-        const timeLeft = animationEnd - Date.now();
-
-        if (timeLeft <= 0) {
-          return clearInterval(interval);
-        }
-
-        const particleCount = 40 * (timeLeft / duration);
-        confetti({
-          ...defaults,
-          particleCount,
-          origin: { x: randomInRange(0.1, 0.9), y: Math.random() - 0.2 },
-          colors
-        });
-      }, 200);
-    }
-  }, []);
-
-  useEffect(() => {
-    // Initial confetti
-    triggerConfetti();
-
-    const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % operators.length);
-      triggerConfetti();
-    }, slideDuration * 1000);
-
-    return () => clearInterval(interval);
-  }, [operators.length, triggerConfetti, slideDuration]);
-
-  // Handle keyboard escape to exit
+  // ── Keyboard / Slide Clicker Navigation ────────────────────────────────────
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onSwitchMode();
+      } else if (e.key === 'ArrowRight' || e.key === 'PageDown') {
+        handleNext();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        handlePrev();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onSwitchMode]);
+  }, [onSwitchMode, handleNext, handlePrev]);
 
+  const hasResumo = Boolean(currentOperator.resumo?.trim());
+
+  // Style helpers mapping
+  const sizeClasses: Record<string, string> = {
+    xl: 'text-xl md:text-2xl',
+    '2xl': 'text-2xl md:text-3xl',
+    '3xl': 'text-3xl md:text-4xl',
+    '4xl': 'text-4xl md:text-5xl',
+    '5xl': 'text-5xl md:text-6xl',
+    '6xl': 'text-6xl md:text-7xl',
+    '7xl': 'text-7xl md:text-8xl',
+    '8xl': 'text-8xl md:text-9xl',
+  };
+
+  const weightClasses: Record<string, string> = {
+    normal: 'font-normal',
+    semibold: 'font-semibold',
+    bold: 'font-bold',
+    black: 'font-black',
+  };
+
+  const alignClasses: Record<string, string> = {
+    left: 'text-left justify-start',
+    center: 'text-center justify-center',
+    right: 'text-right justify-end',
+  };
+
+  // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gray-950 text-white overflow-hidden relative font-sans selection:bg-indigo-500 selection:text-white">
-      {/* Background Ambience (Z-Index 0) */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-900/30 via-gray-950 to-gray-950 z-0"></div>
-      
-      {/* Subtle Return Button */}
+    <div className="min-h-screen bg-gray-950 text-white overflow-hidden relative font-sans">
+
+      {/* Background radial glow */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-900/20 via-gray-950 to-gray-950 z-0" />
+
+      {/* Admin return button */}
       <button
         onClick={onSwitchMode}
         className="absolute top-6 left-6 z-50 p-2 bg-gray-800/50 hover:bg-gray-800 rounded-full text-gray-500 hover:text-white transition-all backdrop-blur-sm"
@@ -146,142 +201,135 @@ export const PresentationMode: React.FC<PresentationModeProps> = ({ operators, s
         <Settings size={20} />
       </button>
 
-      {/* Main Content Area (Z-Index 10 - Above Confetti) */}
+      {/* Side edge navigation buttons (hover visible) */}
+      <button
+        onClick={handlePrev}
+        className="absolute left-6 top-1/2 -translate-y-1/2 z-50 p-4 bg-gray-900/40 hover:bg-gray-800/80 rounded-full text-gray-500 hover:text-white transition-all backdrop-blur-sm opacity-0 hover:opacity-100 focus:opacity-100 group"
+        title="Anterior (Seta Esquerda / Page Up)"
+      >
+        <ChevronLeft size={24} />
+      </button>
+      <button
+        onClick={handleNext}
+        className="absolute right-6 top-1/2 -translate-y-1/2 z-50 p-4 bg-gray-900/40 hover:bg-gray-800/80 rounded-full text-gray-500 hover:text-white transition-all backdrop-blur-sm opacity-0 hover:opacity-100 focus:opacity-100 group"
+        title="Próximo (Seta Direita / Page Down)"
+      >
+        <ChevronRight size={24} />
+      </button>
+
+      {/* Slide dots indicator */}
+      <div className="absolute top-6 right-6 z-50 flex gap-1.5">
+        {operators.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => setCurrentIndex(i)}
+            className={`h-1.5 rounded-full transition-all duration-300 focus:outline-none ${i === currentIndex ? 'w-6 bg-indigo-400' : 'w-1.5 bg-gray-700 hover:bg-gray-600'}`}
+          />
+        ))}
+      </div>
+
+      {/* Main animated content */}
       <AnimatePresence mode="wait">
         <motion.div
           key={currentOperator.id}
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 1.05, filter: 'blur(10px)' }}
-          transition={{ duration: 0.8, ease: "easeInOut" }}
-          className="relative z-10 flex flex-col items-center justify-center min-h-screen w-full px-4"
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 1.02, filter: 'blur(4px)' }}
+          transition={{ duration: 0.5, ease: 'easeInOut' }}
+          className="relative z-10 flex flex-col items-center justify-center min-h-screen w-full px-16 py-12"
         >
-            {/* Operator Name - Customized Font */}
-            <motion.h1 
-                initial={{ y: -50, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.2, duration: 0.6 }}
-                style={{ fontFamily: settings.font }}
-                className="text-4xl md:text-7xl font-bold text-white mb-8 text-center tracking-widest uppercase drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)]"
+          {/* Operator Name */}
+          <motion.h1
+            initial={{ y: -40, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.15, duration: 0.6 }}
+            style={{ fontFamily: settings.nameStyle?.font || settings.font || 'Playfair Display' }}
+            className={`${sizeClasses[settings.nameStyle?.size || '6xl'] || 'text-6xl'} ${weightClasses[settings.nameStyle?.weight || 'bold'] || 'font-bold'} ${alignClasses[settings.nameStyle?.align || 'center']?.split(' ')[0] || 'text-center'} text-white mb-12 tracking-wider uppercase drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)] w-full max-w-6xl px-4`}
+          >
+            {currentOperator.name}
+          </motion.h1>
+
+          {/* Photo + Stats Row */}
+          <div className="flex flex-col xl:flex-row items-center gap-12 xl:gap-20 w-full max-w-7xl justify-center">
+
+            {/* ── Photo ── */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2, duration: 0.6 }}
+              className="relative shrink-0"
             >
-              {currentOperator.name}
-            </motion.h1>
+              {/* Neon glow ring */}
+              <div className="absolute -inset-5 bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 rounded-full opacity-50 blur-2xl animate-pulse" />
 
-            {/* Main Layout: Photo and Stats */}
-            <div className="flex flex-col md:flex-row items-center gap-12 md:gap-16 w-full max-w-7xl justify-center">
-                
-                {/* Photo Container with Neon Glow */}
-                <div className="relative group shrink-0">
-                    {/* Rotating glow ring */}
-                    <div className="absolute -inset-4 bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 rounded-full opacity-75 blur-xl group-hover:opacity-100 transition duration-1000 animate-pulse"></div>
-                    
-                    {/* Decorative Icons */}
-                    <motion.div 
-                        animate={{ rotate: [0, 10, -10, 0] }}
-                        transition={{ repeat: Infinity, duration: 4 }}
-                        className="absolute -top-6 -right-6 z-20 bg-yellow-400 text-yellow-900 p-3 rounded-full shadow-lg border-4 border-gray-900"
-                    >
-                        <Trophy size={40} />
-                    </motion.div>
+              {/* Photo circle */}
+              <div className="relative w-72 h-72 md:w-96 md:h-96 lg:w-[26rem] lg:h-[26rem] rounded-full overflow-hidden border-8 border-gray-900 shadow-2xl z-10">
+                <motion.img
+                  key={`img-${currentOperator.id}`}
+                  src={currentOperator.photo}
+                  alt={currentOperator.name}
+                  className="w-full h-full object-cover"
+                  initial={{ scale: 1 }}
+                  animate={{ scale: 1.12 }}
+                  transition={{ duration: 12, ease: 'easeOut' }}
+                />
+              </div>
+            </motion.div>
 
-                    <div className="relative w-64 h-64 md:w-80 md:h-80 lg:w-96 lg:h-96 rounded-full overflow-hidden border-8 border-gray-900 shadow-2xl z-10">
-                        {/* Zoom Effect Image */}
-                        <motion.img 
-                            key={`img-${currentOperator.id}`}
-                            src={currentOperator.photo} 
-                            alt={currentOperator.name} 
-                            className="w-full h-full object-cover"
-                            initial={{ scale: 1 }}
-                            animate={{ scale: 1.15 }}
-                            transition={{ duration: slideDuration, ease: "linear" }}
-                        />
-                    </div>
-                </div>
-
-                {/* Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-2xl">
-                    
-                    {/* HERO STAT: NPS (Main Highlight) */}
-                    <motion.div 
-                        initial={{ scale: 0.8, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
-                        className="md:col-span-2 relative overflow-hidden bg-gradient-to-br from-yellow-900/40 via-yellow-800/20 to-gray-900/60 backdrop-blur-md border-2 border-yellow-500/50 p-6 rounded-2xl flex items-center justify-between gap-6 shadow-[0_0_30px_rgba(234,179,8,0.2)]"
-                    >
-                         {/* Shine Effect */}
-                         <div className="absolute top-0 right-0 -mr-16 -mt-16 w-32 h-32 bg-yellow-400/20 blur-3xl rounded-full"></div>
-
-                        <div className="flex items-center gap-6 z-10">
-                            <motion.div 
-                                animate={{ scale: [1, 1.1, 1] }}
-                                transition={{ repeat: Infinity, duration: 2 }}
-                                className="p-4 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-2xl text-yellow-950 shadow-lg shadow-yellow-500/20"
-                            >
-                                <Star size={48} fill="currentColor" className="text-yellow-950" />
-                            </motion.div>
-                            <div>
-                                <div className="flex items-center gap-2">
-                                    <Crown size={16} className="text-yellow-400" />
-                                    <p className="text-yellow-400 font-bold uppercase tracking-widest text-sm">Principal Indicador</p>
-                                </div>
-                                <p className="text-gray-200 font-medium text-lg">NPS</p>
-                            </div>
-                        </div>
-                        
-                        <div className="z-10 text-right">
-                             <p className="text-7xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-yellow-600 tabular-nums drop-shadow-sm">
-                                {currentOperator.nps}
-                            </p>
-                        </div>
-                    </motion.div>
-
-                    {/* Secondary Stat: TMA */}
-                    <motion.div 
-                        initial={{ x: 50, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        transition={{ delay: 0.4 }}
-                        className="bg-gray-900/60 backdrop-blur-md border border-gray-800 p-5 rounded-2xl flex items-center gap-4"
-                    >
-                        <div className="p-3 bg-blue-500/20 rounded-xl text-blue-400 shrink-0">
-                            <Clock size={32} />
-                        </div>
-                        <div>
-                            <p className="text-gray-400 font-medium uppercase tracking-wider text-xs">TMA</p>
-                            <p className="text-3xl font-bold text-white tabular-nums drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]">
-                                {currentOperator.tma}
-                            </p>
-                        </div>
-                    </motion.div>
-
-                     {/* Secondary Stat: Quality */}
-                     <motion.div 
-                        initial={{ x: 50, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        transition={{ delay: 0.5 }}
-                        className="bg-gray-900/60 backdrop-blur-md border border-gray-800 p-5 rounded-2xl flex items-center gap-4"
-                    >
-                        <div className="p-3 bg-emerald-500/20 rounded-xl text-emerald-400 shrink-0">
-                            <Activity size={32} />
-                        </div>
-                        <div>
-                            <p className="text-gray-400 font-medium uppercase tracking-wider text-xs">Qualidade</p>
-                            <p className="text-3xl font-bold text-white tabular-nums drop-shadow-[0_0_10px_rgba(16,185,129,0.5)]">
-                                {currentOperator.monitoria}%
-                            </p>
-                        </div>
-                    </motion.div>
-
-                </div>
+            {/* ── Stats 2×2 grid ── */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full max-w-3xl">
+              <StatCard
+                label="NPS"
+                value={String(currentOperator.nps)}
+                icon={<Star size={38} fill="currentColor" />}
+                delay={0.3}
+                statusColor={getNpsColor(currentOperator.nps)}
+              />
+              <StatCard
+                label="Monitoria"
+                value={`${currentOperator.monitoria}%`}
+                icon={<Activity size={38} />}
+                delay={0.4}
+                statusColor={getMonitoriaColor(currentOperator.monitoria)}
+              />
+              <StatCard
+                label="TMA"
+                value={currentOperator.tma}
+                icon={<Clock size={38} />}
+                delay={0.5}
+                statusColor={getTmaColor(currentOperator.tma)}
+              />
+              <StatCard
+                label="Absenteísmo (ABS)"
+                value={currentOperator.abs || '—'}
+                icon={<TrendingDown size={38} />}
+                delay={0.6}
+                statusColor={getAbsColor(currentOperator.abs || '')}
+              />
             </div>
+          </div>
 
-            {/* Progress Bar (Timer) */}
-            <motion.div 
-                key={`progress-${currentOperator.id}`}
-                initial={{ width: "0%" }}
-                animate={{ width: "100%" }}
-                transition={{ duration: slideDuration, ease: "linear" }}
-                className="absolute bottom-0 left-0 h-2 bg-gradient-to-r from-yellow-500 via-indigo-500 to-purple-500 shadow-[0_0_20px_rgba(234,179,8,0.6)]"
-            />
+          {/* ── Resumo ── */}
+          {hasResumo && (
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.75, duration: 0.6 }}
+              className="mt-12 max-w-4xl w-full px-4"
+            >
+              <div className="relative bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl px-12 py-8 shadow-xl">
+                <Quote size={28} className="absolute -top-4 left-6 text-indigo-400 rotate-180 bg-gray-950 px-1" />
+                <p
+                  className={`${sizeClasses[settings.resumoStyle?.size || 'xl'] || 'text-xl'} ${weightClasses[settings.resumoStyle?.weight || 'normal'] || 'font-normal'} ${alignClasses[settings.resumoStyle?.align || 'center']?.split(' ')[0] || 'text-center'} text-gray-200 leading-relaxed`}
+                  style={{ fontFamily: settings.resumoStyle?.font || settings.font || 'Playfair Display' }}
+                >
+                  {currentOperator.resumo}
+                </p>
+                <Quote size={28} className="absolute -bottom-4 right-6 text-indigo-400 bg-gray-950 px-1" />
+              </div>
+            </motion.div>
+          )}
+
         </motion.div>
       </AnimatePresence>
     </div>
