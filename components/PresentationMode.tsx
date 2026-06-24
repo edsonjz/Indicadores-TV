@@ -95,14 +95,14 @@ const StatCard: React.FC<StatCardProps> = ({ icon, label, value, delay, statusCo
       initial={{ y: 30, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ delay, duration: 0.5 }}
-      className={`bg-gray-900/60 backdrop-blur-md border ${scheme.borderColor} p-5 md:p-6 lg:p-7 xl:p-8 rounded-3xl flex items-center gap-4 lg:gap-6 shadow-2xl transition-all duration-300 flex-1 w-full`}
+      className={`bg-gray-900/60 backdrop-blur-md border ${scheme.borderColor} p-3 sm:p-4 md:p-5 lg:p-6 xl:p-8 rounded-3xl flex items-center gap-3 lg:gap-4 shadow-2xl transition-all duration-300 flex-1 min-w-0`}
     >
-      <div className={`p-3 md:p-4 lg:p-5 ${scheme.iconBg} rounded-2xl shrink-0 ${scheme.iconColor} flex items-center justify-center`}>
+      <div className={`p-2.5 sm:p-3 md:p-4 lg:p-5 ${scheme.iconBg} rounded-2xl shrink-0 ${scheme.iconColor} flex items-center justify-center`}>
         {icon}
       </div>
-      <div className="min-w-0">
-        <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px] md:text-xs lg:text-sm mb-1 truncate">{label}</p>
-        <p className={`text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-black tabular-nums tracking-tight ${scheme.valueColor} ${scheme.glow} truncate`}>{value}</p>
+      <div className="min-w-0 flex-1">
+        <p className="text-gray-400 font-bold uppercase tracking-widest text-[9px] sm:text-[10px] md:text-xs lg:text-sm mb-1 truncate">{label}</p>
+        <p className={`text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl font-black tabular-nums tracking-tight ${scheme.valueColor} ${scheme.glow} whitespace-nowrap`}>{value}</p>
       </div>
     </motion.div>
   );
@@ -125,6 +125,21 @@ export const PresentationMode: React.FC<PresentationModeProps> = ({
     setCurrentIndex((prev) => (prev - 1 + operators.length) % operators.length);
   }, [operators.length]);
 
+  // Keyboard / Slide Clicker Navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onSwitchMode();
+      } else if (e.key === 'ArrowRight' || e.key === 'PageDown') {
+        handleNext();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        handlePrev();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onSwitchMode, handleNext, handlePrev]);
+
   // Fallback if no operators exist
   if (operators.length === 0) {
     return (
@@ -144,22 +159,6 @@ export const PresentationMode: React.FC<PresentationModeProps> = ({
   }
 
   const currentOperator = operators[currentIndex];
-
-  // ── Keyboard / Slide Clicker Navigation ────────────────────────────────────
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onSwitchMode();
-      } else if (e.key === 'ArrowRight' || e.key === 'PageDown') {
-        handleNext();
-      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
-        handlePrev();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onSwitchMode, handleNext, handlePrev]);
-
   const hasResumo = Boolean(currentOperator.resumo?.trim());
 
   // Style helpers mapping
@@ -187,10 +186,9 @@ export const PresentationMode: React.FC<PresentationModeProps> = ({
     right: 'text-right justify-end',
   };
 
-  // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gray-950 text-white overflow-hidden relative font-sans">
-
+    <div className="min-h-screen bg-gray-950 text-white overflow-hidden relative font-sans flex flex-col justify-between py-6 lg:py-10 px-6 md:px-16 z-10">
+      
       {/* Background radial glow */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-900/20 via-gray-950 to-gray-950 z-0" />
 
@@ -213,109 +211,110 @@ export const PresentationMode: React.FC<PresentationModeProps> = ({
       </button>
       <button
         onClick={handleNext}
-        className="absolute right-6 top-1/2 -translate-y-1/2 z-50 p-4 bg-gray-900/40 hover:bg-gray-800/80 rounded-full text-gray-500 hover:text-white transition-all backdrop-blu        <motion.div
+        className="absolute right-6 top-1/2 -translate-y-1/2 z-50 p-4 bg-gray-900/40 hover:bg-gray-800/80 rounded-full text-gray-500 hover:text-white transition-all backdrop-blur-sm opacity-0 hover:opacity-100 focus:opacity-100 group"
+        title="Próximo (Seta Direita / Page Down)"
+      >
+        <ChevronRight size={24} />
+      </button>
+
+      <AnimatePresence mode="wait">
+        <motion.div
           key={currentOperator.id}
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 1.02, filter: 'blur(4px)' }}
           transition={{ duration: 0.5, ease: 'easeInOut' }}
-          className="relative z-10 flex flex-col items-center justify-between min-h-screen lg:h-screen w-full px-6 md:px-16 py-6 lg:py-10"
+          className="relative z-10 flex flex-col items-center justify-between flex-grow w-full max-w-7xl mx-auto py-2"
         >
-          {/* Operator Name */}
-          <motion.h1
-            initial={{ y: -40, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.15, duration: 0.6 }}
-            style={{ fontFamily: settings.nameStyle?.font || settings.font || 'Playfair Display' }}
-            className={`${sizeClasses[settings.nameStyle?.size || '6xl'] || 'text-6xl'} ${weightClasses[settings.nameStyle?.weight || 'bold'] || 'font-bold'} ${alignClasses[settings.nameStyle?.align || 'center']?.split(' ')[0] || 'text-center'} text-white tracking-wider uppercase drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)] w-full max-w-6xl px-4 mt-2 mb-4 lg:mb-6 shrink-0`}
-          >
-            {currentOperator.name}
-          </motion.h1>
-
-          {/* ── Photo ── */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2, duration: 0.6 }}
-            className="relative shrink-0 my-auto flex justify-center items-center"
-          >
-            {/* Neon glow ring */}
-            <div className="absolute -inset-5 bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 rounded-full opacity-50 blur-2xl animate-pulse" />
-
-            {/* Photo circle */}
-            <div className="relative w-64 h-64 sm:w-80 sm:h-80 lg:w-[22rem] lg:h-[22rem] xl:w-[26rem] xl:h-[26rem] rounded-full overflow-hidden border-8 border-gray-900 shadow-2xl z-10">
-              <motion.img
-                key={`img-${currentOperator.id}`}
-                src={currentOperator.photo}
-                alt={currentOperator.name}
-                className="w-full h-full object-cover"
-                initial={{ scale: 1 }}
-                animate={{ scale: 1.12 }}
-                transition={{ duration: 12, ease: 'easeOut' }}
-              />
-            </div>
-          </motion.div>
-
-          {/* ── Resumo ── */}
-          {hasResumo && (
+          
+          {/* Centered Main Content Area (Photo & Name) */}
+          <div className="flex flex-col items-center justify-center flex-grow w-full my-auto gap-6 lg:gap-8 py-2">
+            
+            {/* ── Photo with Pulse and Ken Burns (Enlarged) ── */}
             <motion.div
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.75, duration: 0.6 }}
-              className="mt-4 mb-4 max-w-4xl w-full px-4 shrink-0"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2, duration: 0.6 }}
+              className="relative shrink-0 flex justify-center items-center"
             >
-              <div className="relative bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl px-10 py-5 sm:px-12 sm:py-6 shadow-xl">
-                <Quote size={24} className="absolute -top-3.5 left-6 text-indigo-400 rotate-180 bg-gray-950 px-1" />
-                <p
-                  className={`${sizeClasses[settings.resumoStyle?.size || 'xl'] || 'text-xl'} ${weightClasses[settings.resumoStyle?.weight || 'normal'] || 'font-normal'} ${alignClasses[settings.resumoStyle?.align || 'center']?.split(' ')[0] || 'text-center'} text-gray-200 leading-relaxed`}
-                  style={{ fontFamily: settings.resumoStyle?.font || settings.font || 'Playfair Display' }}
-                >
-                  {currentOperator.resumo}
-                </p>
-                <Quote size={24} className="absolute -bottom-3.5 right-6 text-indigo-400 bg-gray-950 px-1" />
+              {/* Neon glow ring */}
+              <div className="absolute -inset-6 bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 rounded-full opacity-50 blur-2xl animate-pulse" />
+
+              {/* Photo circle */}
+              <div className="relative w-56 h-56 sm:w-72 sm:h-72 lg:w-80 lg:h-80 xl:w-[24rem] xl:h-[24rem] rounded-full overflow-hidden border-8 border-gray-900 shadow-2xl z-10">
+                <motion.img
+                  key={`img-${currentOperator.id}`}
+                  src={currentOperator.photo}
+                  alt={currentOperator.name}
+                  className="w-full h-full object-cover"
+                  initial={{ scale: 1 }}
+                  animate={{ scale: 1.12 }}
+                  transition={{ duration: 12, ease: 'easeOut' }}
+                />
               </div>
             </motion.div>
-          )}
 
-          {/* ── Stats 1×4 horizontal row ── */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-7xl px-4 mt-4 mb-2 shrink-0">
+            {/* ── Operator Name directly below the photo ── */}
+            <motion.h1
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.35, duration: 0.5 }}
+              style={{ fontFamily: settings.nameStyle?.font || settings.font || 'Playfair Display' }}
+              className={`${sizeClasses[settings.nameStyle?.size || '6xl'] || 'text-6xl'} ${weightClasses[settings.nameStyle?.weight || 'bold'] || 'font-bold'} ${alignClasses[settings.nameStyle?.align || 'center']?.split(' ')[0] || 'text-center'} text-white tracking-wider uppercase drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)] w-full px-4`}
+            >
+              {currentOperator.name}
+            </motion.h1>
+          </div>
+
+          {/* ── Stats 1×4 Horizontal Row ── */}
+          <div className="grid grid-cols-4 gap-4 lg:gap-6 w-full mt-auto pt-6 border-t border-white/5 shrink-0">
             <StatCard
               label="TMA"
               value={currentOperator.tma}
-              icon={<Clock size={32} />}
-              delay={0.3}
+              icon={<Clock size={28} />}
+              delay={0.6}
               statusColor={getTmaColor(currentOperator.tma)}
             />
             <StatCard
               label="NPS"
               value={String(currentOperator.nps)}
-              icon={<Star size={32} fill="currentColor" />}
-              delay={0.4}
+              icon={<Star size={28} fill="currentColor" />}
+              delay={0.7}
               statusColor={getNpsColor(currentOperator.nps)}
             />
             <StatCard
               label="Monitoria"
               value={`${currentOperator.monitoria}%`}
-              icon={<Activity size={32} />}
-              delay={0.5}
+              icon={<Activity size={28} />}
+              delay={0.8}
               statusColor={getMonitoriaColor(currentOperator.monitoria)}
             />
             <StatCard
               label="ABS"
               value={currentOperator.abs || '—'}
-              icon={<TrendingDown size={32} />}
-              delay={0.6}
+              icon={<TrendingDown size={28} />}
+              delay={0.9}
               statusColor={getAbsColor(currentOperator.abs || '')}
             />
           </div>
-        </motion.div>y-950 px-1" />
+
+          {/* ── Resumo (Quotes block) below the indicators ── */}
+          {hasResumo && (
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 1.1, duration: 0.5 }}
+              className="max-w-4xl w-full px-4 mt-6 shrink-0"
+            >
+              <div className="relative bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl px-8 py-4 sm:px-10 sm:py-5 shadow-xl">
+                <Quote size={20} className="absolute -top-3 left-6 text-indigo-400 rotate-180 bg-gray-950 px-1" />
                 <p
                   className={`${sizeClasses[settings.resumoStyle?.size || 'xl'] || 'text-xl'} ${weightClasses[settings.resumoStyle?.weight || 'normal'] || 'font-normal'} ${alignClasses[settings.resumoStyle?.align || 'center']?.split(' ')[0] || 'text-center'} text-gray-200 leading-relaxed`}
                   style={{ fontFamily: settings.resumoStyle?.font || settings.font || 'Playfair Display' }}
                 >
                   {currentOperator.resumo}
                 </p>
-                <Quote size={28} className="absolute -bottom-4 right-6 text-indigo-400 bg-gray-950 px-1" />
+                <Quote size={20} className="absolute -bottom-3 right-6 text-indigo-400 bg-gray-950 px-1" />
               </div>
             </motion.div>
           )}
