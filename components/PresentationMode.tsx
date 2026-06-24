@@ -95,12 +95,14 @@ const StatCard: React.FC<StatCardProps> = ({ icon, label, value, delay, statusCo
       initial={{ y: 30, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ delay, duration: 0.5 }}
-      className={`bg-gray-900/60 backdrop-blur-md border ${scheme.borderColor} p-6 md:p-8 rounded-3xl flex items-center gap-6 shadow-2xl transition-all duration-300`}
+      className={`bg-gray-900/60 backdrop-blur-md border ${scheme.borderColor} p-5 md:p-6 lg:p-7 xl:p-8 rounded-3xl flex items-center gap-4 lg:gap-6 shadow-2xl transition-all duration-300 flex-1 w-full`}
     >
-      <div className={`p-4 md:p-5 ${scheme.iconBg} rounded-2xl shrink-0 ${scheme.iconColor}`}>{icon}</div>
-      <div>
-        <p className="text-gray-400 font-bold uppercase tracking-widest text-xs md:text-sm mb-1">{label}</p>
-        <p className={`text-4xl md:text-5xl lg:text-6xl font-black tabular-nums tracking-tight ${scheme.valueColor} ${scheme.glow}`}>{value}</p>
+      <div className={`p-3 md:p-4 lg:p-5 ${scheme.iconBg} rounded-2xl shrink-0 ${scheme.iconColor} flex items-center justify-center`}>
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px] md:text-xs lg:text-sm mb-1 truncate">{label}</p>
+        <p className={`text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-black tabular-nums tracking-tight ${scheme.valueColor} ${scheme.glow} truncate`}>{value}</p>
       </div>
     </motion.div>
   );
@@ -211,32 +213,13 @@ export const PresentationMode: React.FC<PresentationModeProps> = ({
       </button>
       <button
         onClick={handleNext}
-        className="absolute right-6 top-1/2 -translate-y-1/2 z-50 p-4 bg-gray-900/40 hover:bg-gray-800/80 rounded-full text-gray-500 hover:text-white transition-all backdrop-blur-sm opacity-0 hover:opacity-100 focus:opacity-100 group"
-        title="Próximo (Seta Direita / Page Down)"
-      >
-        <ChevronRight size={24} />
-      </button>
-
-      {/* Slide dots indicator */}
-      <div className="absolute top-6 right-6 z-50 flex gap-1.5">
-        {operators.map((_, i) => (
-          <button
-            key={i}
-            onClick={() => setCurrentIndex(i)}
-            className={`h-1.5 rounded-full transition-all duration-300 focus:outline-none ${i === currentIndex ? 'w-6 bg-indigo-400' : 'w-1.5 bg-gray-700 hover:bg-gray-600'}`}
-          />
-        ))}
-      </div>
-
-      {/* Main animated content */}
-      <AnimatePresence mode="wait">
-        <motion.div
+        className="absolute right-6 top-1/2 -translate-y-1/2 z-50 p-4 bg-gray-900/40 hover:bg-gray-800/80 rounded-full text-gray-500 hover:text-white transition-all backdrop-blu        <motion.div
           key={currentOperator.id}
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 1.02, filter: 'blur(4px)' }}
           transition={{ duration: 0.5, ease: 'easeInOut' }}
-          className="relative z-10 flex flex-col items-center justify-center min-h-screen w-full px-16 py-12"
+          className="relative z-10 flex flex-col items-center justify-between min-h-screen lg:h-screen w-full px-6 md:px-16 py-6 lg:py-10"
         >
           {/* Operator Name */}
           <motion.h1
@@ -244,70 +227,34 @@ export const PresentationMode: React.FC<PresentationModeProps> = ({
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.15, duration: 0.6 }}
             style={{ fontFamily: settings.nameStyle?.font || settings.font || 'Playfair Display' }}
-            className={`${sizeClasses[settings.nameStyle?.size || '6xl'] || 'text-6xl'} ${weightClasses[settings.nameStyle?.weight || 'bold'] || 'font-bold'} ${alignClasses[settings.nameStyle?.align || 'center']?.split(' ')[0] || 'text-center'} text-white mb-12 tracking-wider uppercase drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)] w-full max-w-6xl px-4`}
+            className={`${sizeClasses[settings.nameStyle?.size || '6xl'] || 'text-6xl'} ${weightClasses[settings.nameStyle?.weight || 'bold'] || 'font-bold'} ${alignClasses[settings.nameStyle?.align || 'center']?.split(' ')[0] || 'text-center'} text-white tracking-wider uppercase drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)] w-full max-w-6xl px-4 mt-2 mb-4 lg:mb-6 shrink-0`}
           >
             {currentOperator.name}
           </motion.h1>
 
-          {/* Photo + Stats Row */}
-          <div className="flex flex-col xl:flex-row items-center gap-12 xl:gap-20 w-full max-w-7xl justify-center">
+          {/* ── Photo ── */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.2, duration: 0.6 }}
+            className="relative shrink-0 my-auto flex justify-center items-center"
+          >
+            {/* Neon glow ring */}
+            <div className="absolute -inset-5 bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 rounded-full opacity-50 blur-2xl animate-pulse" />
 
-            {/* ── Photo ── */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2, duration: 0.6 }}
-              className="relative shrink-0"
-            >
-              {/* Neon glow ring */}
-              <div className="absolute -inset-5 bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 rounded-full opacity-50 blur-2xl animate-pulse" />
-
-              {/* Photo circle */}
-              <div className="relative w-72 h-72 md:w-96 md:h-96 lg:w-[26rem] lg:h-[26rem] rounded-full overflow-hidden border-8 border-gray-900 shadow-2xl z-10">
-                <motion.img
-                  key={`img-${currentOperator.id}`}
-                  src={currentOperator.photo}
-                  alt={currentOperator.name}
-                  className="w-full h-full object-cover"
-                  initial={{ scale: 1 }}
-                  animate={{ scale: 1.12 }}
-                  transition={{ duration: 12, ease: 'easeOut' }}
-                />
-              </div>
-            </motion.div>
-
-            {/* ── Stats 2×2 grid ── */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full max-w-3xl">
-              <StatCard
-                label="NPS"
-                value={String(currentOperator.nps)}
-                icon={<Star size={38} fill="currentColor" />}
-                delay={0.3}
-                statusColor={getNpsColor(currentOperator.nps)}
-              />
-              <StatCard
-                label="Monitoria"
-                value={`${currentOperator.monitoria}%`}
-                icon={<Activity size={38} />}
-                delay={0.4}
-                statusColor={getMonitoriaColor(currentOperator.monitoria)}
-              />
-              <StatCard
-                label="TMA"
-                value={currentOperator.tma}
-                icon={<Clock size={38} />}
-                delay={0.5}
-                statusColor={getTmaColor(currentOperator.tma)}
-              />
-              <StatCard
-                label="Absenteísmo (ABS)"
-                value={currentOperator.abs || '—'}
-                icon={<TrendingDown size={38} />}
-                delay={0.6}
-                statusColor={getAbsColor(currentOperator.abs || '')}
+            {/* Photo circle */}
+            <div className="relative w-64 h-64 sm:w-80 sm:h-80 lg:w-[22rem] lg:h-[22rem] xl:w-[26rem] xl:h-[26rem] rounded-full overflow-hidden border-8 border-gray-900 shadow-2xl z-10">
+              <motion.img
+                key={`img-${currentOperator.id}`}
+                src={currentOperator.photo}
+                alt={currentOperator.name}
+                className="w-full h-full object-cover"
+                initial={{ scale: 1 }}
+                animate={{ scale: 1.12 }}
+                transition={{ duration: 12, ease: 'easeOut' }}
               />
             </div>
-          </div>
+          </motion.div>
 
           {/* ── Resumo ── */}
           {hasResumo && (
@@ -315,10 +262,53 @@ export const PresentationMode: React.FC<PresentationModeProps> = ({
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.75, duration: 0.6 }}
-              className="mt-12 max-w-4xl w-full px-4"
+              className="mt-4 mb-4 max-w-4xl w-full px-4 shrink-0"
             >
-              <div className="relative bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl px-12 py-8 shadow-xl">
-                <Quote size={28} className="absolute -top-4 left-6 text-indigo-400 rotate-180 bg-gray-950 px-1" />
+              <div className="relative bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl px-10 py-5 sm:px-12 sm:py-6 shadow-xl">
+                <Quote size={24} className="absolute -top-3.5 left-6 text-indigo-400 rotate-180 bg-gray-950 px-1" />
+                <p
+                  className={`${sizeClasses[settings.resumoStyle?.size || 'xl'] || 'text-xl'} ${weightClasses[settings.resumoStyle?.weight || 'normal'] || 'font-normal'} ${alignClasses[settings.resumoStyle?.align || 'center']?.split(' ')[0] || 'text-center'} text-gray-200 leading-relaxed`}
+                  style={{ fontFamily: settings.resumoStyle?.font || settings.font || 'Playfair Display' }}
+                >
+                  {currentOperator.resumo}
+                </p>
+                <Quote size={24} className="absolute -bottom-3.5 right-6 text-indigo-400 bg-gray-950 px-1" />
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── Stats 1×4 horizontal row ── */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-7xl px-4 mt-4 mb-2 shrink-0">
+            <StatCard
+              label="TMA"
+              value={currentOperator.tma}
+              icon={<Clock size={32} />}
+              delay={0.3}
+              statusColor={getTmaColor(currentOperator.tma)}
+            />
+            <StatCard
+              label="NPS"
+              value={String(currentOperator.nps)}
+              icon={<Star size={32} fill="currentColor" />}
+              delay={0.4}
+              statusColor={getNpsColor(currentOperator.nps)}
+            />
+            <StatCard
+              label="Monitoria"
+              value={`${currentOperator.monitoria}%`}
+              icon={<Activity size={32} />}
+              delay={0.5}
+              statusColor={getMonitoriaColor(currentOperator.monitoria)}
+            />
+            <StatCard
+              label="ABS"
+              value={currentOperator.abs || '—'}
+              icon={<TrendingDown size={32} />}
+              delay={0.6}
+              statusColor={getAbsColor(currentOperator.abs || '')}
+            />
+          </div>
+        </motion.div>y-950 px-1" />
                 <p
                   className={`${sizeClasses[settings.resumoStyle?.size || 'xl'] || 'text-xl'} ${weightClasses[settings.resumoStyle?.weight || 'normal'] || 'font-normal'} ${alignClasses[settings.resumoStyle?.align || 'center']?.split(' ')[0] || 'text-center'} text-gray-200 leading-relaxed`}
                   style={{ fontFamily: settings.resumoStyle?.font || settings.font || 'Playfair Display' }}
